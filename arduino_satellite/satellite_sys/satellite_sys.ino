@@ -28,7 +28,7 @@
 #define GPS_SERIAL Serial2
 #define RF_SERIAL Serial3
 
-#define HEADTING_DUTY_SETTING 40  // 加热板占空比设置（0~255），注意占空比不要设置过高，温度过高危险
+#define HEADTING_DUTY_SETTING 250//40  // 加热板占空比设置（0~255），注意占空比不要设置过高，温度过高危险
 #define HEATER_ON true
 #define HEATER_OFF false
 
@@ -390,6 +390,7 @@ void loop() {
     static volatile uint32_t timer_start = millis();
     char *p;
     char buf[512] = {};
+    long temp = 0;
 
     if (1000 < millis() - timer_start) {
         // Serial.println("fresh sensor data!");
@@ -398,7 +399,13 @@ void loop() {
         
         set_heater(HEATER_OFF);
         delay(5);
-        sys_data.heating_panel_temp = ht.getThmc();  // get heating panel tempearature
+
+        for(int i = 0; i < 50; i++) {
+            temp += ht.getThmc();
+        }
+        temp = temp / 50;
+        sys_data.heating_panel_temp = temp;
+
         set_heater(heater_state);
 
         // get Temperature and humiduty
@@ -423,12 +430,12 @@ void loop() {
             p = strtok(NULL, ",");
             sys_data.gps_longitude = atof(p);
             Serial.print("GPS: ");
-            Serial.print(sys_data.gps_longitude);
+            Serial.print(sys_data.gps_longitude, 4);
             p = strtok(NULL, ",");
             p = strtok(NULL, ",");
             sys_data.gps_latitude = atof(p);
             Serial.print(", ");
-            Serial.println(sys_data.gps_latitude);
+            Serial.println(sys_data.gps_latitude, 4);
         } 
         
 
@@ -468,12 +475,14 @@ void loop() {
         case opt_Turn_On_Heater:
             operation_index = opt_default;  // 恢复到默认状态。
             set_heater_on();
+            RF_SERIAL.write(COMM_TURN_ON_HEATER);
             heater_state = true;
             break;
 
         case opt_Turn_Off_Heater:
             operation_index = opt_default;  // 恢复到默认状态。
             set_heater_off();
+            RF_SERIAL.write(COMM_TURN_OFF_HEATER);
             heater_state = false;
             break;
 
@@ -613,18 +622,18 @@ bool RF_data_update(void)
     RF_SERIAL.print("\"GPS_LAT\":");
     RF_SERIAL.print("{");
     RF_SERIAL.print("\"value\": ");
-    RF_SERIAL.print(sys_data.gps_latitude);
+    RF_SERIAL.print(sys_data.gps_latitude, 4);
     RF_SERIAL.print(",\"check\": ");
-    RF_SERIAL.print(sys_data.gps_latitude + checkValue);
+    RF_SERIAL.print(sys_data.gps_latitude + checkValue, 4);
     RF_SERIAL.print("},");
 
     // GPS 经度
     RF_SERIAL.print("\"GPS_LON\":");
     RF_SERIAL.print("{");
     RF_SERIAL.print("\"value\": ");
-    RF_SERIAL.print(sys_data.gps_longitude);
+    RF_SERIAL.print(sys_data.gps_longitude, 4);
     RF_SERIAL.print(",\"check\": ");
-    RF_SERIAL.print(sys_data.gps_longitude + checkValue);
+    RF_SERIAL.print(sys_data.gps_longitude + checkValue, 4);
     RF_SERIAL.print("},");
 
     RF_SERIAL.print("}");
@@ -653,6 +662,7 @@ void serialEvent2()
                 String inString = GPS_SERIAL.readStringUntil('\n');
                 if(inString.substring(0,5) == "GPGGA"){     //"GPGGA" is a line of message which include the message of possition, then send it with Serial
                     GPS_data = inString;
+                    // Serial.println(GPS_data);
                 }
             }
         }
