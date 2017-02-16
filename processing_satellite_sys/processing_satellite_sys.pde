@@ -1,7 +1,6 @@
+
 /*
   文件：processing_satelite_sys.pde 
-  修改：界面分辨率调整，以为适应小分辨率屏幕（800*438）
-  系统参数：displayWidth， displayHeight
 */
   
 import processing.serial.*;
@@ -80,10 +79,11 @@ public float dist_pos_x = 0;
 public float dist_pos_y = 0;
 public float dist_pos_z = 0;
 public float cur_compass = 0;
-public boolean g_bis_start_heater = false;
-public float g_fvirtual_temp = 0;
+public boolean g_is_start_heater = false;
+public boolean g_is_solar_pannel_opened = false;
 public int   pic_load_percent = 0;   // 图片加载进程
 public boolean kill_pic_receive_processing = false;  // 强制退出传输图片进程
+public long time_begin_get_sensor_data = millis();  // 收取传感器数据的开始时间变量
 
 // system_statesthe program running now.
 
@@ -196,8 +196,8 @@ void draw() {
   ///gps_coordinate(sat_sys.gps_LON, sat_sys.gps_LAT); /* GPS 数据显示 */
   draw_picture();  /* 显示卫星照片 */
   draw_compass(sat_sys.compass_value);  /* 指南针 */
-  // draw_temp_and_humi(sat_sys.heating_temp, sat_sys.inside_humi);  /* 温湿度 */
-  draw_temp_and_humi(g_fvirtual_temp, sat_sys.inside_humi);  /* 温湿度 */
+  draw_temp_and_humi(sat_sys.heating_temp, sat_sys.inside_humi);  /* 温湿度 */
+  //draw_temp_and_humi(g_fvirtual_temp, sat_sys.inside_humi);  /* 温湿度 */
   
   cal_gradual_data();
   // draw_satellitePosture(-cur_pos_y, -cur_pos_x, 1.0);  /* 卫星姿态 */
@@ -279,11 +279,11 @@ void resize_components(float _scale) {
  */
 void cal_gradual_data() {
 
-  if(cur_pos_x < (-sat_sys.rotate_x)) cur_pos_x += 0.01;
-  if(cur_pos_y < (-sat_sys.rotate_y)) cur_pos_y += 0.01;
+  if(cur_pos_x < (-sat_sys.rotate_x)) cur_pos_x += 0.02;
+  if(cur_pos_y < (-sat_sys.rotate_y)) cur_pos_y += 0.02;
   
-  if(cur_pos_x > (-sat_sys.rotate_x)) cur_pos_x -= 0.01;
-  if(cur_pos_y > (-sat_sys.rotate_y)) cur_pos_y -= 0.01;
+  if(cur_pos_x > (-sat_sys.rotate_x)) cur_pos_x -= 0.02;
+  if(cur_pos_y > (-sat_sys.rotate_y)) cur_pos_y -= 0.02;
 }
 
 /**
@@ -610,6 +610,10 @@ void thread_RF_Serial() {
         cnt = 10;
         while((0 != ret) && ( 0 != cnt--)){
           ret = sat_sys.get_pic_len();
+          if(-2 == ret) {
+            opt_index = OPT_REQUEST_SAT_DATA;
+            break;
+          }
           print("Get pic length result: ");
           println(ret);
           delay(500);
@@ -625,7 +629,7 @@ void thread_RF_Serial() {
         System_Log("Begin receiveing picture...");
         //ret = sat_sys.receive_pic_data();
         ret = get_pic_data();
-        print("Get receive pic result: ");
+        print("Receive pic result: ");
         println(ret);
 
         if (0 != ret) {
@@ -634,58 +638,65 @@ void thread_RF_Serial() {
           opt_index = OPT_RESET;
         } else {
           img = loadImage("pic.jpg");
-          System_Log("Get picture successful!");
+          System_Log("Get picture succeed!");
         }
 
         opt_index = OPT_REQUEST_SAT_DATA;
         break;
 
       case OPT_TURN_ON_HEATER:
-        System_Log("Opening heater...");
-        //ret = sat_sys.open_heater();  
-        
-        // 虚拟加热，开
-        ret = 0;
-        g_bis_start_heater = true;
-        
-        if(0 != ret) {
-          println("Open heater failed...");
-        } else {
-          println("Open heater successfully...");
-        }
         opt_index = OPT_REQUEST_SAT_DATA;
+        System_Log("Opening heater...");
+        ret = sat_sys.open_heater();  
+        
+        if(0 == ret) {
+          System_Log("Open heater succeed...");
+          g_is_start_heater = true;
+        } else {
+          System_Log("Open heater failed...");
+        }
         break;
 
       case OPT_TURN_OFF_HEATER:
-        System_Log("Closing heater...");
-        // ret = sat_sys.close_heater();
-        
-        // 虚拟加热，关闭
-        ret = 0;
-        g_bis_start_heater = false;
-
-        if(0 != ret) {
-          println("Close heater failed...");
-        } else {
-          println("Close heater successfully...");
-        }
         opt_index = OPT_REQUEST_SAT_DATA;
+        System_Log("Closing heater...");
+        ret = sat_sys.close_heater();
+
+        if(0 == ret) {
+          System_Log("Close heater succeed...");          
+          g_is_start_heater = false;
+        } else {
+          System_Log("Close heater failed...");
+        }
         break;
 
       case OPT_OPEN_SOLAR_PANEL:
+        opt_index = OPT_REQUEST_SAT_DATA;
+        System_Log("Opening solar panel...!");        
         ret = sat_sys.open_solar_panel();
+        g_is_solar_pannel_opened = true;
         print("Open solar panel result: ");
         println(ret);
-        System_Log("Opened solar panel!");
-        opt_index = OPT_REQUEST_SAT_DATA;
+        if(0 == ret) {
+          System_Log("Opene solar panel succeed!");        
+        } else {
+          System_Log("Opene solar panel failed...");        
+        }
+
         break;
 
       case OPT_CLOSE_SOLAR_PANEL:
+        opt_index = OPT_REQUEST_SAT_DATA;
+        System_Log("Closing solar panel...!");
         ret = sat_sys.close_solar_panel();
+        g_is_solar_pannel_opened = false;
         print("Close solar panel result: ");
         println(ret);
-        System_Log("Close solar panel!");
-        opt_index = OPT_REQUEST_SAT_DATA;
+        if(0 == ret) {
+          System_Log("Close solar panel succeed!");        
+        } else {
+          System_Log("Close solar panel failed...");        
+        }        
         break;
 
       case OPT_RESET:
@@ -696,35 +707,21 @@ void thread_RF_Serial() {
         break;
 
       case OPT_REQUEST_SAT_DATA:
-        ret = sat_sys.get_Sensor_data(1000);  // 获取传感器数据
-        if (0 == ret) {
-          
-          // 加热板温度调控，数据为虚拟
-          if(g_bis_start_heater){
-            if(g_fvirtual_temp < sat_sys.inside_temp + 20) {
-              g_fvirtual_temp += random(0, 0.5);
-            } else {
-              g_fvirtual_temp = sat_sys.inside_temp + 20;
-            }
-          } else {
-            if(g_fvirtual_temp > sat_sys.inside_temp) {
-              g_fvirtual_temp -= random(0, 0.5);
-            } else {
-              g_fvirtual_temp = sat_sys.inside_temp;
-            }
+        if (1000 < (millis() - time_begin_get_sensor_data)) {
+          time_begin_get_sensor_data = millis();
+          ret = sat_sys.get_Sensor_data(1000);  // 获取传感器数据
+          print("Get date state: ");
+          println(ret);
+          if (0 == ret) {
+  
+            System_Log(
+                     "Temperature: " + sat_sys.heating_temp +
+                     "  Humidity: " + sat_sys.inside_humi + 
+                     "  Compass: " + sat_sys.compass_value + "\n" +
+                     "Sate_posture: " + sat_sys.rotate_x + "  " +sat_sys.rotate_y + "  " + sat_sys.rotate_z + "\r\n" + 
+                     "GPS_LAT: " + sat_sys.gps_LAT + ", GPS_LON: " + sat_sys.gps_LON
+                     );
           }
-
-          // float temp_low = g_fvirtual_temp - 1;
-          // float temp_high = g_fvirtual_temp + 1;
-          // g_fvirtual_temp = random(temp_low, temp_high);
-          System_Log("Temperature: " + g_fvirtual_temp +
-                   "  Humidity: " + sat_sys.inside_humi + 
-                   "  Compass: " + sat_sys.compass_value + "\n" +
-                   "Sate_posture: " + sat_sys.rotate_x + "  " +sat_sys.rotate_y + "  " + sat_sys.rotate_z + "\r\n" + 
-                   // "Dist Pos: " + dist_pos_x + " " + dist_pos_y + " " + dist_pos_z + "\r\n" + 
-                   // "GPS: " + sat_sys.gps_LAT + ", " + sat_sys.gps_LON
-                   "GPS_LAT: " + sat_sys.gps_LAT + ", GPS_LON: " + sat_sys.gps_LON
-                   );
         }
         break;
 
@@ -833,14 +830,35 @@ void drawButtons() {
   stroke(250);
   fill(c1);
   rect(g_ibutton1[0], g_ibutton1[1], g_ibutton_width, g_ibutton_height);
-  fill(c2);
+  
+  if(true == g_is_solar_pannel_opened) {
+    fill(touch);
+  } else {
+    fill(c2);  
+  }
   rect(g_ibutton2[0], g_ibutton2[1], g_ibutton_width / 2, g_ibutton_height);
-  fill(c3);
+  
+  if(true != g_is_solar_pannel_opened) {
+    fill(touch);
+  } else {
+    fill(c3);
+  }
   rect(g_ibutton3[0], g_ibutton3[1], g_ibutton_width / 2, g_ibutton_height);
-  fill(c4);
+  
+  if(true == g_is_start_heater) {
+    fill(touch);
+  } else {
+    fill(c4);
+  }
   rect(g_ibutton4[0], g_ibutton4[1], g_ibutton_width / 2, g_ibutton_height);
-  fill(c5);
+ 
+  if(true != g_is_start_heater) {
+    fill(touch);
+  } else {
+    fill(c5);
+  }
   rect(g_ibutton5[0], g_ibutton5[1], g_ibutton_width / 2, g_ibutton_height);
+  
   fill(c6);
   rect(g_ibutton6[0], g_ibutton6[1], g_ibutton_width, g_ibutton_height);
 }

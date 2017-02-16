@@ -99,29 +99,44 @@ public class Satellite_SYS implements PConstants {
       // 检测串口是否初始化
       if(this.myPort == null) {
         System.out.println("mySerial not been initialized!");
-        return -1;
+        return -4;
       }
 
-      if (interval_time < (this.papplet.millis() - this.time_begin_get_sensor_data)) {
-          this.time_begin_get_sensor_data = this.papplet.millis();
-          // if (!RF_ask_for_new_task(1000)) return -1;
-          this.myPort.clear();
-          this.myPort.write(this.COMM_REQUEST_SAT_DATA);
-          this.papplet.delay(500);
-          if (RF_read_timeout(1000)) return -1;
+      //if (interval_time < (this.papplet.millis() - this.time_begin_get_sensor_data)) {
+      //    this.time_begin_get_sensor_data = this.papplet.millis();
+      //    // if (!RF_ask_for_new_task(1000)) return -1;
+      //    this.myPort.clear();
+      //    this.myPort.write(this.COMM_REQUEST_SAT_DATA);
+      //    this.papplet.delay(500);
+      //    if (RF_read_timeout(1000)) return -1;
 
-          String inString = this.myPort.readStringUntil('\n');
-          if(inString == null) {
-            return -1;
-          } else {
-            //System.out.println(inString);
-            parse_sensor_data(inString);  // 开始解析传感器数据
-            return 0;
-          }
+      //    String inString = this.myPort.readStringUntil('\n');
+      //    if(inString == null) {
+      //      return -2;
+      //    } else {
+      //      System.out.println(inString);
+      //      parse_sensor_data(inString);  // 开始解析传感器数据
+      //      return 0;
+      //    }
+      //}
+      
+      this.myPort.clear();
+      this.myPort.write(this.COMM_REQUEST_SAT_DATA);
+      this.papplet.delay(800);
+      if (RF_read_timeout(1000)) return -1;
+
+      String inString = this.myPort.readStringUntil('\n');
+      System.out.println(inString);      if(inString == null) {
+        return -2;
+      } else {
+        // System.out.println(inString);
+        parse_sensor_data(inString);  // 开始解析传感器数据
+        return 0;
       }
       // System.out.print(this.papplet.dataPath(""));
-      return -1;
+      // return -3;
     }
+    
     /**
      * @函数: public int parse_sensor_data(String inString)
      * @说明: 接收无线串口发来的信息, 解析并处理数据
@@ -314,15 +329,11 @@ public class Satellite_SYS implements PConstants {
         if (RF_read_timeout(1000)) return -1;
 
         int data = this.myPort.read();
-        System.out.println("Received data bakc: " + data);
+        System.out.println("Received data back: " + data);
         if(data == this.COMM_CLOSE_SOLAR_PANEL) {
           solar_panel_state = 0;
           System.out.println("Colsed solar panel!");
         }
-        // else if(data == this.COMM_BUSY){
-        //   return -1;
-        // }
-        //this.myPort.clear();
 
         return 0;
     }
@@ -341,7 +352,7 @@ public class Satellite_SYS implements PConstants {
         System.out.println("Received data back: " + data);
         if(data == this.COMM_TURN_ON_HEATER) {
           this.solar_panel_state = 0;
-          System.out.println("Opened heater!");
+          System.out.println("Open heater succeed!");
         } 
         return 0;
     }
@@ -350,9 +361,9 @@ public class Satellite_SYS implements PConstants {
      * @函数：public void close_heater()
      */
     public int close_heater() {
-        this.myPort.write(this.COMM_TURN_OFF_HEATER);
-        System.out.println("Colsing heater!");
+        System.out.println("Closing heater!");
         this.myPort.clear();
+        this.myPort.write(this.COMM_TURN_OFF_HEATER);
         this.papplet.delay(100);
         if (RF_read_timeout(1000)) return -1;
 
@@ -360,7 +371,7 @@ public class Satellite_SYS implements PConstants {
         System.out.println("Received data back: " + data);
         if(data == this.COMM_TURN_OFF_HEATER) {
           solar_panel_state = 0;
-          System.out.println("Colsed heater!");
+          System.out.println("Colse heater succeed!");
         }
 
         return 0;
@@ -395,8 +406,8 @@ public class Satellite_SYS implements PConstants {
       System.out.println("Get pic length!");
       this.myPort.clear();
       // while(0 < this.myPort.available()) {  // 清除串口缓存
-      //   this.myPort.read();
-      // }
+      //    this.myPort.read();
+      //  }
       this.myPort.write(this.COMM_GET_PIC_LEN);
       this.papplet.delay(500);
       if (RF_read_timeout(1000)) return -1;
@@ -404,12 +415,17 @@ public class Satellite_SYS implements PConstants {
       String data = this.myPort.readStringUntil('\n');
       data = data.trim();
       System.out.println("Get pic length: " + data);
-      len = Long.parseLong(data, 10);
-      if ((10000 < len) && (len < 40000)) {
+      try{
+        len = Long.parseLong(data, 10);
+      }catch (Exception e){
+        e.printStackTrace();
+        return -2;
+      }
+      if ((1000 < len) && (len < 40000)) {
         this.pic_length = len;
       } else {
         this.pic_length = 0;
-        return -2;
+        return -3;
       }
 
       return 0;
@@ -421,7 +437,7 @@ public class Satellite_SYS implements PConstants {
     public int receive_pic_data() {
       try {
         System.out.println("Receiving pic!");
-        final int dataSize = 1023;
+        final int dataSize = 127; //1023;
         this.picture = this.papplet.createOutput("pic.jpg");
         this.myPort.clear();
         this.myPort.write(this.COMM_RECEIVE_PIC_DATA);
@@ -519,30 +535,6 @@ public class Satellite_SYS implements PConstants {
       }
       return 0;
     }
-
-    // /**
-    //  * @函数：public int receive_serial_data_and_parse_checksum(int[] data, long len, checksum)
-    //  */
-    // public int receive_serial_data_and_parse_checksum(int[] data, long len, checksum) {
-    //   long sum = 0;
-    //   int checksum = 0;
-
-    //   for(long i = 0; i < len; i++) {
-    //     if (0 != RF_read_timeout(1000)) return -1;
-    //     data[i] = this.myPort.read();
-    //     sum += data[i];
-    //   }
-
-    //   sum = sum % 0xFF;
-
-    //   if (0 != RF_read_timeout(1000)) return -1;
-
-    //   checksum = this.myPort.read();
-
-    //   if(sum != checksum) return -2;
-
-    //   return 0;
-    // }
 
     /**
      * @函数：boolean RF_ask_for_new_task(long timeout)
