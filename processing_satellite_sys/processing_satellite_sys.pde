@@ -201,7 +201,7 @@ void draw() {
   
   cal_gradual_data();
   // draw_satellitePosture(-cur_pos_y, -cur_pos_x, 1.0);  /* 卫星姿态 */
-  // draw_satellitePosture(-cur_pos_y, -cur_pos_x, cur_compass/360.0);  /* 卫星姿态 */
+  // draw_satellitePosture(-cur_pos_x, cur_pos_y, sat_sys.compass_value/360.0*TWO_PI+HALF_PI);  /* 卫星姿态 */
   draw_satellitePosture(-cur_pos_x, cur_pos_y,  -1.0);  /* 卫星姿态 */
   drawButtons();  /* 按键 */
   
@@ -663,7 +663,7 @@ void thread_RF_Serial() {
         ret = sat_sys.close_heater();
 
         if(0 == ret) {
-          System_Log("Close heater succeed...");          
+          System_Log("Close heater succeed...");
           g_is_start_heater = false;
         } else {
           System_Log("Close heater failed...");

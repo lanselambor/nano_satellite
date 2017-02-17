@@ -58,7 +58,6 @@ float Axyz[3];
 float Gxyz[3];
 float Mxyz[3];
 
-volatile bool mutex_locked = false;
 
 volatile float mx_sample[3];
 volatile float my_sample[3];
@@ -150,8 +149,6 @@ void set_heater_on();
 void set_heater_off();
 void set_solar_panel_up();
 void set_solar_panel_down();
-void loop_mutex_lock();
-void loop_mutex_unlock();
 void RF_Serial_test();
 bool RF_data_update(void);
 String getGPSdata();
@@ -259,14 +256,15 @@ void setup() {
     pinMode(4,OUTPUT);          // CS pin of SD Card Shield
     if (!SD.begin(4))
     {
-        Serial.print("sd init failed");
-        return;
+        Serial.println("sd init failed\n");
+        // return;
+    } else {
+      Serial.println("sd init done.\n");
     }
-    Serial.println("sd init done.");
-
+    
     // RF Serial init
     // RF_SERIAL.begin(115200);  
-    RF_SERIAL.begin(9600);  
+    RF_SERIAL.begin(9600);
     
     // Camera init
     CAM_SERIAL.begin(115200);  
@@ -315,13 +313,10 @@ void setup() {
  *        
  */
 void RFSerial_ISR() {
-    
-    if( !mutex_locked ) {
-        if(RF_SERIAL.available()) {
-            Serial.println("Enter timer1 interrupt!");
-            comm_run(&RF_SERIAL);
-            // RF_Serial_test();
-        }
+    if(RF_SERIAL.available()) {
+        Serial.println("Enter timer1 interrupt!");
+        comm_run(&RF_SERIAL);
+        // RF_Serial_test();
     }
 }
 
@@ -374,16 +369,6 @@ void set_solar_panel_down()
         }      
     }
 }
-
-void loop_mutex_lock() {
-    mutex_locked = true;
-}
-
-void loop_mutex_unlock() {
-    mutex_locked = false;
-}
-
-
 
 void loop() {
 
@@ -453,7 +438,9 @@ void loop() {
             RF_SERIAL.write(COMM_PRE_CAPTURE);
             preCapture();
             Capture();
-            if (0 != GetData()) {
+            if (0 == GetData()) {
+                Serial.println("GetData Succeed!");
+            } else {
                 Serial.println("GetData Error!");
             }
 
@@ -853,10 +840,18 @@ void camera_initialize()
 {
     char cmd[] = {0xaa,0x0d|cameraAddr,0x00,0x00,0x00,0x00} ;
     unsigned char resp[6];
+    int init_cnt = 5;
+    bool init_state = false;
 
     CAM_SERIAL.setTimeout(500);
     while (1)
     {
+
+        init_cnt --;
+        if(0 == init_cnt) {
+            break;
+        }
+
         //clearRxBuf();
         cam_sendCmd(cmd,6);
         if (CAM_SERIAL.readBytes((char *)resp, 6) != 6)
@@ -866,13 +861,18 @@ void camera_initialize()
         if (resp[0] == 0xaa && resp[1] == (0x0e | cameraAddr) && resp[2] == 0x0d && resp[4] == 0 && resp[5] == 0)
         {
             if (CAM_SERIAL.readBytes((char *)resp, 6) != 6) continue;
-            if (resp[0] == 0xaa && resp[1] == (0x0d | cameraAddr) && resp[2] == 0 && resp[3] == 0 && resp[4] == 0 && resp[5] == 0) break;
+            if (resp[0] == 0xaa && resp[1] == (0x0d | cameraAddr) && resp[2] == 0 && resp[3] == 0 && resp[4] == 0 && resp[5] == 0) {init_state = true; break;}
         }
     }
     cmd[1] = 0x0e | cameraAddr;
     cmd[2] = 0x0d;
     cam_sendCmd(cmd, 6);
-    Serial.println("\nCamera initialization done.");
+    if(init_state) {
+        Serial.println("\nCamera initialization done.\n");
+    } else {
+        Serial.println("\nCamera initialize failed...\n");
+    }
+    
 }
 
 /**

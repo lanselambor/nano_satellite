@@ -392,6 +392,9 @@ public class Satellite_SYS implements PConstants {
       System.out.println("Received data back: " + data);
       if(data == this.COMM_PRE_CAPTURE) {
         System.out.println("Pre-capture done!");
+      } else{
+        System.out.println("Pre-capture failed...!");
+        return -2;
       }
 
       return 0;
@@ -437,7 +440,7 @@ public class Satellite_SYS implements PConstants {
     public int receive_pic_data() {
       try {
         System.out.println("Receiving pic!");
-        final int dataSize = 127; //1023;
+        final int dataSize = 1023;
         this.picture = this.papplet.createOutput("pic.jpg");
         this.myPort.clear();
         this.myPort.write(this.COMM_RECEIVE_PIC_DATA);
