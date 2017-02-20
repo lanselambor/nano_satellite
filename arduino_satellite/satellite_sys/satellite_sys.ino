@@ -1078,12 +1078,14 @@ int sendData(void){
 
                 if(val == COMM_CAN ){
                     Serial.println("Received cancle!");
+                    photoFile.close();
                     return -2;
                 } else if(val == COMM_ACK) {
                     break;
                 } else if(val != COMM_NAK) { // 收到指令，既不退出也不是重传，则退出。
                     Serial.println("Received rubbish!");
-                    return -2;
+                    photoFile.close();
+                    return -3;
                 }
             } while (val == COMM_NAK);
 
@@ -1115,11 +1117,13 @@ int sendData(void){
             val = RF_SERIAL.read();
             if(val == COMM_CAN ){
                 Serial.println("Received cancle!");
+                photoFile.close();
                 return -2;
             } else if(val == COMM_ACK) {
                 break;
             } else if(val != COMM_NAK) { // 收到指令，既不退出也不是重传，则退出。
                 Serial.println("Received rubbish!");
+                photoFile.close();
                 return -2;
             }
         } while (val == COMM_NAK);

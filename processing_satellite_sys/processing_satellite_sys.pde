@@ -84,8 +84,7 @@ public boolean g_is_solar_pannel_opened = false;
 public int   pic_load_percent = 0;   // 图片加载进程
 public boolean kill_pic_receive_processing = false;  // 强制退出传输图片进程
 public long time_begin_get_sensor_data = millis();  // 收取传感器数据的开始时间变量
-
-// system_statesthe program running now.
+public boolean receiving_pic_intterupt = false;
 
 public final int OPT_DEFAULT = 0;
 public final int OPT_TAKE_PHOTO = 1;
@@ -354,13 +353,21 @@ int get_pic_data()
   if (data == sat_sys.COMM_RECEIVE_PIC_DATA) {
     // Start receive pic data
     long data_len_saved = 0;
-    int error_counter = 0;
+    int error_counter = 0;    
 
-    while( sat_sys.pic_length > data_len_saved ) {
+    while(sat_sys.pic_length > data_len_saved) {
       int[] dataBuffer = new int[dataSize];
       int checksum = 0;
       int sum = 0;
       
+      // 检查系统是否要求停止接收图片
+      if( receiving_pic_intterupt ){
+        receiving_pic_intterupt = false;
+        println("Receiveing pic interrupt...");
+        System_Log("Receiveing pic interrupt...");
+        return -3;
+      }
+      opt_index = OPT_RESET;
       // 1.读取 dataSize Bytes
       //while(sat_sys.myPort.available() < 128);
       for(int i = 0; i < dataSize; i++){
@@ -609,6 +616,13 @@ void thread_RF_Serial() {
       case OPT_GET_PIC_LEN:
         cnt = 10;
         while((0 != ret) && ( 0 != cnt--)){
+          // Check if reset button pressed
+          if( receiving_pic_intterupt ) {
+            receiving_pic_intterupt = false;
+            opt_index = OPT_REQUEST_SAT_DATA;
+            break;
+          }
+
           ret = sat_sys.get_pic_len();
           if(-2 == ret) {
             opt_index = OPT_REQUEST_SAT_DATA;
@@ -626,6 +640,7 @@ void thread_RF_Serial() {
         break;
 
       case OPT_RECEIVE_PIC_DATA:
+        opt_index = OPT_REQUEST_SAT_DATA;
         System_Log("Begin receiveing picture...");
         //ret = sat_sys.receive_pic_data();
         ret = get_pic_data();
@@ -636,12 +651,12 @@ void thread_RF_Serial() {
           System_Log("Failed to receive picture!");
           println("Get photo error!");
           opt_index = OPT_RESET;
+        } else if(-3 == ret) {
+          opt_index = OPT_RESET;
         } else {
           img = loadImage("pic.jpg");
           System_Log("Get picture succeed!");
         }
-
-        opt_index = OPT_REQUEST_SAT_DATA;
         break;
 
       case OPT_TURN_ON_HEATER:
@@ -700,8 +715,35 @@ void thread_RF_Serial() {
         break;
 
       case OPT_RESET:
-        myPort.write(sat_sys.COMM_CAN);
         System_Log("Reset system!");
+        // 1.发送COMM_CAN 退出所有任务，包括拍照
+        myPort.write(sat_sys.COMM_CAN);
+        delay(1000);
+
+        // 2.关闭加热板
+        System_Log("Closing heater...");
+        ret = sat_sys.close_heater();
+
+        if(0 == ret) {
+          System_Log("Close heater succeed...");
+          g_is_start_heater = false;
+        } else {
+          System_Log("Close heater failed...");
+        }
+        delay(500);
+
+        // 3.关闭太阳能板
+        System_Log("Closing solar panel...!");
+        ret = sat_sys.close_solar_panel();
+        g_is_solar_pannel_opened = false;
+        print("Close solar panel result: ");
+        println(ret);
+        if(0 == ret) {
+          System_Log("Close solar panel succeed!");        
+        } else {
+          System_Log("Close solar panel failed...");        
+        }
+        
         println("System Reset!");
         opt_index = OPT_REQUEST_SAT_DATA;
         break;
@@ -792,6 +834,7 @@ void mouseReleased() {
   //Reset
   if (mouseIn(g_ibutton6[0], g_ibutton6[1], g_ibutton6[0] + g_ibutton_width, g_ibutton6[1] + g_ibutton_height)) {
     opt_index = OPT_RESET;
+    receiving_pic_intterupt = true;
   }
 }
 

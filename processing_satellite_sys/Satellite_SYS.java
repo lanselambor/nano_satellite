@@ -416,9 +416,9 @@ public class Satellite_SYS implements PConstants {
       if (RF_read_timeout(1000)) return -1;
 
       String data = this.myPort.readStringUntil('\n');
-      data = data.trim();
-      System.out.println("Get pic length: " + data);
       try{
+        data = data.trim();
+        System.out.println("Get pic length: " + data);
         len = Long.parseLong(data, 10);
       }catch (Exception e){
         e.printStackTrace();
