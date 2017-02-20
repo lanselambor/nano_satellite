@@ -304,6 +304,8 @@ void setup() {
 
     RF_SERIAL.setTimeout(1000);
 
+    operation_index = opt_default;
+
 }
 
 /**
@@ -422,22 +424,21 @@ void loop() {
             Serial.print(", ");
             Serial.println(sys_data.gps_latitude, 4);
         } 
-        
-
-
-        // RF_SERIAL.println(sys_data.inside_temp);
-        // RF_SERIAL.println(sys_data.inside_humi);
-        // RF_SERIAL.println(sys_data.posture_x);
-        // RF_SERIAL.println(sys_data.posture_y);
-        // RF_SERIAL.println(sys_data.posture_z);
     }
 
     switch(operation_index) {
 
         case opt_Pre_Capture:
             RF_SERIAL.write(COMM_PRE_CAPTURE);
-            preCapture();
-            Capture();
+            if(-1 == preCapture()) {
+                operation_index == opt_default;
+                break;
+            }
+            if(-1 == Capture()) {
+                operation_index == opt_default;
+                break;
+            }
+            
             if (0 == GetData()) {
                 Serial.println("GetData Succeed!");
             } else {
@@ -884,9 +885,10 @@ int preCapture(void)
 {
     char cmd[] = { 0xaa, 0x01 | cameraAddr, 0x00, 0x07, 0x00, PIC_FMT };
     unsigned char resp[6];
+    int err_cnt = 0;
 
     CAM_SERIAL.setTimeout(100);
-    while (1)
+    while (err_cnt < 10)
     {
         clearRxBuf();
         cam_sendCmd(cmd, 6);
@@ -895,6 +897,7 @@ int preCapture(void)
         {
             return 0;
         }
+        err_cnt ++;
     }
 
     return -1;
@@ -910,14 +913,16 @@ int Capture(void)
 {
     char cmd[] = { 0xaa, 0x06 | cameraAddr, 0x08, PIC_PKT_LEN & 0xff, (PIC_PKT_LEN>>8) & 0xff ,0};
     unsigned char resp[6];
+    int err_cnt = 0;
 
     CAM_SERIAL.setTimeout(100);
-    while (1)
+    while (err_cnt < 10)
     {
         clearRxBuf();
         cam_sendCmd(cmd, 6);
         if (CAM_SERIAL.readBytes((char *)resp, 6) != 6) continue;
         if (resp[0] == 0xaa && resp[1] == (0x0e | cameraAddr) && resp[2] == 0x06 && resp[4] == 0 && resp[5] == 0) break;
+        err_cnt ++;
 
     }
     cmd[1] = 0x05 | cameraAddr;
@@ -925,17 +930,22 @@ int Capture(void)
     cmd[3] = 0;
     cmd[4] = 0;
     cmd[5] = 0;
-    while (1)
+
+    err_cnt = 0;
+    while (err_cnt < 10)
     {
         clearRxBuf();
         cam_sendCmd(cmd, 6);
         if (CAM_SERIAL.readBytes((char *)resp, 6) != 6) continue;
         if (resp[0] == 0xaa && resp[1] == (0x0e | cameraAddr) && resp[2] == 0x05 && resp[4] == 0 && resp[5] == 0) break;
+        err_cnt ++;
 
     }
     cmd[1] = 0x04 | cameraAddr;
     cmd[2] = 0x1;
-    while (1)
+    err_cnt = 0;
+
+    while (err_cnt < 10)
     {
         clearRxBuf();
         cam_sendCmd(cmd, 6);
@@ -953,6 +963,7 @@ int Capture(void)
                 break;
             }
         }
+        err_cnt ++;
     }
 
     return 0;

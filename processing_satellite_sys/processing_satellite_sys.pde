@@ -1,6 +1,9 @@
 
 /*
   文件：processing_satelite_sys.pde 
+  作者：方仕坚
+  日期：2016/12/19
+  版本：v1.0
 */
   
 import processing.serial.*;
@@ -84,7 +87,8 @@ public boolean g_is_solar_pannel_opened = false;
 public int   pic_load_percent = 0;   // 图片加载进程
 public boolean kill_pic_receive_processing = false;  // 强制退出传输图片进程
 public long time_begin_get_sensor_data = millis();  // 收取传感器数据的开始时间变量
-public boolean receiving_pic_intterupt = false;
+public boolean quit_taking_photo = false;
+public boolean taking_photo = false;
 
 public final int OPT_DEFAULT = 0;
 public final int OPT_TAKE_PHOTO = 1;
@@ -361,13 +365,12 @@ int get_pic_data()
       int sum = 0;
       
       // 检查系统是否要求停止接收图片
-      if( receiving_pic_intterupt ){
-        receiving_pic_intterupt = false;
+      if( quit_taking_photo ){
+        quit_taking_photo = false;
         println("Receiveing pic interrupt...");
         System_Log("Receiveing pic interrupt...");
         return -3;
       }
-      opt_index = OPT_RESET;
       // 1.读取 dataSize Bytes
       //while(sat_sys.myPort.available() < 128);
       for(int i = 0; i < dataSize; i++){
@@ -615,48 +618,45 @@ void thread_RF_Serial() {
 
       case OPT_GET_PIC_LEN:
         cnt = 10;
-        while((0 != ret) && ( 0 != cnt--)){
+        while( 0 != cnt-- ){
           // Check if reset button pressed
-          if( receiving_pic_intterupt ) {
-            receiving_pic_intterupt = false;
-            opt_index = OPT_REQUEST_SAT_DATA;
+          if( quit_taking_photo ) {
+            System_Log("Cancling taking photo...");
+            quit_taking_photo = false;
             break;
           }
 
           ret = sat_sys.get_pic_len();
-          if(-2 == ret) {
-            opt_index = OPT_REQUEST_SAT_DATA;
+          if(ret == 0) {
+            opt_index = OPT_RECEIVE_PIC_DATA;
+            print("Get pic length result: ");
+            println(ret);
             break;
           }
-          print("Get pic length result: ");
-          println(ret);
-          delay(500);
+          else if(-2 == ret) {
+            break;
+          }
         }
-        if(ret == 0) {
-          opt_index = OPT_RECEIVE_PIC_DATA;
-        } else {
-          opt_index = OPT_REQUEST_SAT_DATA;
-        }
+        
         break;
 
       case OPT_RECEIVE_PIC_DATA:
-        opt_index = OPT_REQUEST_SAT_DATA;
         System_Log("Begin receiveing picture...");
-        //ret = sat_sys.receive_pic_data();
         ret = get_pic_data();
         print("Receive pic result: ");
         println(ret);
 
-        if (0 != ret) {
-          System_Log("Failed to receive picture!");
-          println("Get photo error!");
-          opt_index = OPT_RESET;
-        } else if(-3 == ret) {
-          opt_index = OPT_RESET;
-        } else {
+        if (0 == ret) {
           img = loadImage("pic.jpg");
           System_Log("Get picture succeed!");
+        } else if(-3 == ret) {
+          System_Log("Cancle receiving pic...");
+          break;
+        } else {
+          System_Log("Failed to receive picture!");
+          println("Get photo error!");
         }
+        opt_index = OPT_REQUEST_SAT_DATA;
         break;
 
       case OPT_TURN_ON_HEATER:
@@ -813,8 +813,16 @@ void scan_serial_ports() {
 void mouseReleased() {
 
   if (mouseIn(g_ibutton1[0], g_ibutton1[1], g_ibutton1[0] + g_ibutton_width, g_ibutton1[1] + g_ibutton_height)) {
-    // opt_index = OPT_TAKE_PHOTO;
-    opt_index = OPT_PRE_CAPTUR;
+    if(taking_photo) {
+      taking_photo = false;
+      quit_taking_photo = true;
+      opt_index = OPT_REQUEST_SAT_DATA;
+    } else {
+      taking_photo = true;
+      quit_taking_photo = false;
+      opt_index = OPT_PRE_CAPTUR;
+    }
+    
   }
   if (mouseIn(g_ibutton2[0], g_ibutton2[1], g_ibutton2[0] + g_ibutton_width / 2, g_ibutton2[1] + g_ibutton_height)) {
     opt_index = OPT_OPEN_SOLAR_PANEL;
@@ -834,7 +842,7 @@ void mouseReleased() {
   //Reset
   if (mouseIn(g_ibutton6[0], g_ibutton6[1], g_ibutton6[0] + g_ibutton_width, g_ibutton6[1] + g_ibutton_height)) {
     opt_index = OPT_RESET;
-    receiving_pic_intterupt = true;
+    quit_taking_photo = true;
   }
 }
 
