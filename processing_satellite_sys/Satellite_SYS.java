@@ -250,8 +250,9 @@ public class Satellite_SYS implements PConstants {
              if(checkData(gps_latitude.getFloat("value"), gps_latitude.getFloat("check"))) {
                // System.out.print("gps_latitude: ");
                // System.out.println(gps_latitude.getFloat("value"));
-               float dd = gps_latitude.getFloat("value") % 100 / 60;
-               this.gps_LAT = gps_latitude.getFloat("value") / 100 + dd;
+               float dd = gps_latitude.getFloat("value") % 100;
+               dd = (float)(dd / 60.0);
+               this.gps_LAT = (float)((int)(gps_latitude.getFloat("value") / 100) + dd);
              }
            } catch (Exception e) {} 
 
@@ -259,8 +260,9 @@ public class Satellite_SYS implements PConstants {
              if(checkData(gps_longitude.getFloat("value"), gps_longitude.getFloat("check"))) {
                // System.out.print("gps_longitude: ");
                // System.out.println(gps_longitude.getFloat("value"));
-               float dd = gps_longitude.getFloat("value") % 100 / 60;
-               this.gps_LON = gps_longitude.getFloat("value") / 100 + dd;
+               float dd = gps_longitude.getFloat("value") % 100;
+               dd = (float)(dd / 60.0);
+               this.gps_LON = (float)((int)(gps_longitude.getFloat("value") / 100) + dd);
              }
            } catch (Exception e) {} 
 

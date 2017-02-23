@@ -315,6 +315,26 @@ void setup() {
  *        
  */
 void RFSerial_ISR() {
+    // Factory test code
+    static float light = 0;
+    static bool better_light = false;
+    if(better_light) {
+        if(light > 80.0) {
+            better_light = false;
+        }
+        light += 0.3;
+    } else {
+        if(light < 0.0) {
+            better_light = true;
+        }
+        light -= 0.3;
+    }
+    
+    pinMode(13, OUTPUT);
+    analogWrite(13, (int)light);
+    
+    
+
     if(RF_SERIAL.available()) {
         Serial.println("Enter timer1 interrupt!");
         comm_run(&RF_SERIAL);
