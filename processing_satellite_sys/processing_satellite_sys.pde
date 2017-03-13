@@ -1,11 +1,11 @@
 
 /*
-  文件：processing_satelite_sys.pde 
+  文件：processing_satelite_sys.pde
   作者：方仕坚
   日期：2016/12/19
   版本：v1.0
 */
-  
+
 import processing.serial.*;
 import controlP5.*;
 
@@ -14,7 +14,7 @@ public float _scale = 1.5;
 
 /**
  * @brief Components layout
- */  
+ */
 int coor_zero_point = 0;
 int[] coor_longitude = {int(38*_scale), coor_zero_point + int(30*_scale)};
 int[] coor_latitude = {int(300*_scale), coor_zero_point + int(30*_scale)};
@@ -117,10 +117,10 @@ void setup() {
   _scale = width / 1024.0;
   coor_zero_point = int((height - 560 * _scale) / 2);
   resize_components(_scale);
-  
 
-  
-  
+
+
+
   cp5 = new ControlP5(this);
 
   /* 扫描串口 */
@@ -164,7 +164,7 @@ void setup() {
   } catch (Exception e) {
 
   }
-  
+
   //image(img, coor_pic[0], coor_pic[1], img.width*0.8, img.height*0.8); // 显示图片
   satellite = loadShape("bracket_box_2_0.obj"); /* 卫星3D模型 */
   thermometer = loadShape("thermometer.svg");  /* 温度计图形 */
@@ -173,9 +173,9 @@ void setup() {
   bg = loadImage("background.png"); /* 背景图 */
   compass = loadImage("compass.png");  /* 指南针底盘 */
   compass_arrow = loadImage("compass_arrow.png");  /* 指南针指针 */
-  
 
-  System_Log("Initialize successfully!\r\n" + 
+
+  System_Log("Initialize successfully!\r\n" +
               "Please connect the right serial port of wireless RF model!");
 }
 
@@ -186,14 +186,14 @@ void setup() {
 void draw() {
   bg.resize(int(1024 * _scale), int(560 * _scale));
   resize_components(_scale);
-  
+
   //background(bg);  /* 加载背景图 */
   image(bg, 0, coor_zero_point, g_Size_background_img[0], g_Size_background_img[1]);
-  
+
   stroke(255);  /* 边缘为白色 */
   fill(0);  /* 填充颜色为纯黑色 */
-  
-  /* 图形、图片、数据刷新 */ 
+
+  /* 图形、图片、数据刷新 */
   //gps_coordinate(19.646334, 110.988356); /* GPS 数据显示 */
   gps_coordinate(sat_sys.gps_LON, sat_sys.gps_LAT); /* GPS 数据显示 */
   ///gps_coordinate(sat_sys.gps_LON, sat_sys.gps_LAT); /* GPS 数据显示 */
@@ -201,13 +201,13 @@ void draw() {
   draw_compass(sat_sys.compass_value);  /* 指南针 */
   draw_temp_and_humi(sat_sys.heating_temp, sat_sys.inside_humi);  /* 温湿度 */
   //draw_temp_and_humi(g_fvirtual_temp, sat_sys.inside_humi);  /* 温湿度 */
-  
+
   cal_gradual_data();
   // draw_satellitePosture(-cur_pos_y, -cur_pos_x, 1.0);  /* 卫星姿态 */
   // draw_satellitePosture(-cur_pos_x, cur_pos_y, sat_sys.compass_value/360.0*TWO_PI+HALF_PI);  /* 卫星姿态 */
   draw_satellitePosture(-cur_pos_x, cur_pos_y,  -1.0);  /* 卫星姿态 */
   drawButtons();  /* 按键 */
-  
+
   terminal.setText(log_content);
 
 }
@@ -284,18 +284,18 @@ void cal_gradual_data() {
 
   if(cur_pos_x < (-sat_sys.rotate_x)) cur_pos_x += 0.02;
   if(cur_pos_y < (-sat_sys.rotate_y)) cur_pos_y += 0.02;
-  
+
   if(cur_pos_x > (-sat_sys.rotate_x)) cur_pos_x -= 0.02;
   if(cur_pos_y > (-sat_sys.rotate_y)) cur_pos_y -= 0.02;
 }
 
 /**
- * @函数:  
+ * @函数:
  * @说明:
  */
 
 
-/** 
+/**
  * @函数：public void System_Log()
  */
 public void System_Log(String str) {
@@ -332,16 +332,16 @@ public void RFset() {
  * @函数: int get_pic_data()
  * @返回值: 0代表拍照失败, 1代表拍照成功
  */
-int get_pic_data() 
+int get_pic_data()
 {
   println("Receiving pic!");
   picture = createOutput("pic.jpg");
-  
+
   final int dataSize = 127;
 
   sat_sys.myPort.clear();
   sat_sys.myPort.write(sat_sys.COMM_RECEIVE_PIC_DATA);
-  
+
   delay(100);
   if (sat_sys.RF_read_timeout(1000)) {
     return -1;
@@ -349,21 +349,21 @@ int get_pic_data()
 
   int data = sat_sys.myPort.read();
   println("Received data back: " + data);
-  
+
   if(data != sat_sys.COMM_RECEIVE_PIC_DATA) {
     return -2;
-  } 
+  }
 
   if (data == sat_sys.COMM_RECEIVE_PIC_DATA) {
     // Start receive pic data
     long data_len_saved = 0;
-    int error_counter = 0;    
+    int error_counter = 0;
 
     while(sat_sys.pic_length > data_len_saved) {
       int[] dataBuffer = new int[dataSize];
       int checksum = 0;
       int sum = 0;
-      
+
       // 检查系统是否要求停止接收图片
       if( quit_taking_photo ){
         quit_taking_photo = false;
@@ -397,7 +397,7 @@ int get_pic_data()
       }
       // 错误次数清零
       error_counter = 0;
-      
+
 
       // 2.等待校验和到来
       if (sat_sys.RF_read_timeout(1000)) { // 等待校验和
@@ -425,7 +425,7 @@ int get_pic_data()
           try {
             picture.write(dataBuffer[i]);  // 写入 dataSize 字节数据
             data_len_saved ++;
-          } 
+          }
           catch (IOException e) {
             // e.printStackTrace();
           }
@@ -435,7 +435,7 @@ int get_pic_data()
           try {
             picture.write(dataBuffer[i]);  // 写入 dataSize 字节数据
             data_len_saved ++;
-          } 
+          }
           catch (IOException e) {
             // e.printStackTrace();
           } // 写入最后不到dataSize字节的数据
@@ -444,7 +444,7 @@ int get_pic_data()
         break;
       }
       // sat_sys.myPort.write(sat_sys.COMM_ACK);  // 发送正确回应，让卫星继续发送后继数据。
-      
+
       pic_load_percent = (int)(data_len_saved*100/sat_sys.pic_length);
       println("data_received: " + pic_load_percent + "%");
       log_content = "Receiveing picture: " + pic_load_percent + "%";
@@ -455,10 +455,10 @@ int get_pic_data()
       }
     }
   }
-  
+
   return 0;
 } /* End of get_pic_data() */
-    
+
 
 
 /**
@@ -488,7 +488,7 @@ void controlEvent(ControlEvent theEvent) {
   //           );
 
   //   // Add String value to RF CHN variable
-  // } 
+  // }
   if (theEvent.isController()) {
     if (COM_List == theEvent.getController()) {
       println("Select port : " + int(theEvent.getController().getValue()));
@@ -502,7 +502,7 @@ void controlEvent(ControlEvent theEvent) {
  */
 int test_RF_config_mode() {
   String inStrng = "";
-  
+
   myPort.clear();
   myPort.write("AT");
   if (serial_read_timeout(500) ){
@@ -513,11 +513,11 @@ int test_RF_config_mode() {
       delay(1);
     }
   }
-  
+
   if((null == inStrng) || !inStrng.contains("OK")) {
     return -1;
   }
-  
+
   return 0;
 
 }
@@ -550,7 +550,7 @@ int config_RF_channel(String channel) {
   if(!inString.contains(channel)) {
     return -1;
   }
-  
+
   return 0;
 }
 
@@ -637,7 +637,7 @@ void thread_RF_Serial() {
             break;
           }
         }
-        
+
         break;
 
       case OPT_RECEIVE_PIC_DATA:
@@ -662,8 +662,8 @@ void thread_RF_Serial() {
       case OPT_TURN_ON_HEATER:
         opt_index = OPT_REQUEST_SAT_DATA;
         System_Log("Opening heater...");
-        ret = sat_sys.open_heater();  
-        
+        ret = sat_sys.open_heater();
+
         if(0 == ret) {
           System_Log("Open heater succeed...");
           g_is_start_heater = true;
@@ -687,15 +687,15 @@ void thread_RF_Serial() {
 
       case OPT_OPEN_SOLAR_PANEL:
         opt_index = OPT_REQUEST_SAT_DATA;
-        System_Log("Opening solar panel...!");        
+        System_Log("Opening solar panel...!");
         ret = sat_sys.open_solar_panel();
         g_is_solar_pannel_opened = true;
         print("Open solar panel result: ");
         println(ret);
         if(0 == ret) {
-          System_Log("Opene solar panel succeed!");        
+          System_Log("Open solar panel succeed!");
         } else {
-          System_Log("Opene solar panel failed...");        
+          System_Log("Open solar panel failed...");        
         }
 
         break;
@@ -708,10 +708,10 @@ void thread_RF_Serial() {
         print("Close solar panel result: ");
         println(ret);
         if(0 == ret) {
-          System_Log("Close solar panel succeed!");        
+          System_Log("Close solar panel succeed!");
         } else {
-          System_Log("Close solar panel failed...");        
-        }        
+          System_Log("Close solar panel failed...");
+        }
         break;
 
       case OPT_RESET:
@@ -739,11 +739,11 @@ void thread_RF_Serial() {
         print("Close solar panel result: ");
         println(ret);
         if(0 == ret) {
-          System_Log("Close solar panel succeed!");        
+          System_Log("Close solar panel succeed!");
         } else {
-          System_Log("Close solar panel failed...");        
+          System_Log("Close solar panel failed...");
         }
-        
+
         println("System Reset!");
         opt_index = OPT_REQUEST_SAT_DATA;
         break;
@@ -755,12 +755,12 @@ void thread_RF_Serial() {
           print("Get date state: ");
           println(ret);
           if (0 == ret) {
-  
+
             System_Log(
                      "Temperature: " + sat_sys.heating_temp +
-                     "  Humidity: " + sat_sys.inside_humi + 
+                     "  Humidity: " + sat_sys.inside_humi +
                      "  Compass: " + sat_sys.compass_value + "\n" +
-                     "Sate_posture: " + sat_sys.rotate_x + "  " +sat_sys.rotate_y + "  " + sat_sys.rotate_z + "\r\n" + 
+                     "Sate_posture: " + sat_sys.rotate_x + "  " +sat_sys.rotate_y + "  " + sat_sys.rotate_z + "\r\n" +
                      "GPS_LAT: " + sat_sys.gps_LAT + ", GPS_LON: " + sat_sys.gps_LON
                      );
           }
@@ -769,7 +769,7 @@ void thread_RF_Serial() {
 
       default: break;
     }
-  }  
+  }
 }
 
 /**
@@ -779,7 +779,7 @@ void thread_RF_Serial() {
 void scan_serial_ports() {
   ArrayList<String> port_list = new ArrayList<String>();
   String[]  temp_list = {};
-  
+
   temp_list = Serial.list();
   if( 0 == temp_list.length ) {
     textSize(12);
@@ -793,7 +793,7 @@ void scan_serial_ports() {
       port_list.add(temp_list[i]);
     }
   }
-  
+
   //printArray(port_list);
   COM_List = cp5.addDropdownList("SELECT PORT")
                 .setPosition(coor_serialPortConfig[0], coor_serialPortConfig[1])
@@ -802,13 +802,13 @@ void scan_serial_ports() {
                 ;
 
   customize(COM_List, port_list);
-  
+
 }
 
 /**
  * @函数：void mouseReleased()
  * @返回值：无
- * @说明：监测鼠标右击松开时的位置，用来实现鼠标点击的功能反馈  
+ * @说明：监测鼠标右击松开时的位置，用来实现鼠标点击的功能反馈
  */
 void mouseReleased() {
 
@@ -822,7 +822,7 @@ void mouseReleased() {
       quit_taking_photo = false;
       opt_index = OPT_PRE_CAPTUR;
     }
-    
+
   }
   if (mouseIn(g_ibutton2[0], g_ibutton2[1], g_ibutton2[0] + g_ibutton_width / 2, g_ibutton2[1] + g_ibutton_height)) {
     opt_index = OPT_OPEN_SOLAR_PANEL;
@@ -856,7 +856,7 @@ void drawButtons() {
   color c4 = release;
   color c5 = release;
   color c6 = release;
-  
+
 
   if (mouseIn(g_ibutton1[0], g_ibutton1[1], g_ibutton1[0] + g_ibutton_width, g_ibutton1[1] + g_ibutton_height)) {
     c1 = touch;
@@ -869,7 +869,7 @@ void drawButtons() {
   }
   if (mouseIn(g_ibutton4[0], g_ibutton4[1], g_ibutton4[0] + g_ibutton_width / 2, g_ibutton4[1] + g_ibutton_height)) {
     c4 = touch;
-  } 
+  }
   if (mouseIn(g_ibutton5[0], g_ibutton5[1], g_ibutton5[0] + g_ibutton_width / 2, g_ibutton5[1] + g_ibutton_height)) {
     c5 = touch;
   }
@@ -877,39 +877,39 @@ void drawButtons() {
     c6 = touch;
   }
 
-  
+
   stroke(250);
   fill(c1);
   rect(g_ibutton1[0], g_ibutton1[1], g_ibutton_width, g_ibutton_height);
-  
+
   if(true == g_is_solar_pannel_opened) {
     fill(touch);
   } else {
-    fill(c2);  
+    fill(c2);
   }
   rect(g_ibutton2[0], g_ibutton2[1], g_ibutton_width / 2, g_ibutton_height);
-  
+
   if(true != g_is_solar_pannel_opened) {
     fill(touch);
   } else {
     fill(c3);
   }
   rect(g_ibutton3[0], g_ibutton3[1], g_ibutton_width / 2, g_ibutton_height);
-  
+
   if(true == g_is_start_heater) {
     fill(touch);
   } else {
     fill(c4);
   }
   rect(g_ibutton4[0], g_ibutton4[1], g_ibutton_width / 2, g_ibutton_height);
- 
+
   if(true != g_is_start_heater) {
     fill(touch);
   } else {
     fill(c5);
   }
   rect(g_ibutton5[0], g_ibutton5[1], g_ibutton_width / 2, g_ibutton_height);
-  
+
   fill(c6);
   rect(g_ibutton6[0], g_ibutton6[1], g_ibutton_width, g_ibutton_height);
 }
